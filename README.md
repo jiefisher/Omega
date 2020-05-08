@@ -1,2 +1,2 @@
 # Omega
-deep learning framework
+a tiny deep learning framework
