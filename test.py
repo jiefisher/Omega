@@ -12,4 +12,4 @@ grad_list=gradients.gradients(c,[a])
 print(len(grad_list))
 
 m=executor.Executor([c]+grad_list)
-print(m.run([c]+grad_list,{a:2*np.ones(3),b:3*np.ones(3)}))
+print(m.run([c]+grad_list,{a:np.array([[1,1]]),b:np.array([[2,2]])}))
