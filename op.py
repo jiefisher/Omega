@@ -71,8 +71,8 @@ class MatMulOp(OP):
             vals[1]=vals[1].T
         return np.dot(vals[0],vals[1])
     def gradient(self,node,grad):
-        grad_A=matmul(grad,node.inputs[1],Transpose_A=False,Transpose_B=True)
-        grad_B=matmul(node.inputs[0],grad,Transpose_A=True,Transpose_B=False)
+        grad_A=matmul(grad,node.parents[1],Transpose_A=False,Transpose_B=True)
+        grad_B=matmul(node.parents[0],grad,Transpose_A=True,Transpose_B=False)
         return [grad_A,grad_B]
 
 class ZerosLikeOp(OP):
