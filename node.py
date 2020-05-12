@@ -25,8 +25,14 @@ class Node:
             return op.mul_op(self,other)
         else:
             return op.mul_by_const(self,other)
+    def __div__(self,other):
+        if type(other)==Node:
+            return op.div_op(self,other)
+        else:
+            return op.div_by_const_op(self,other)
     __radd__ = __add__
     __rmul__ = __mul__
+    __rdiv__ = __div__
 
 
 def Variable(name):

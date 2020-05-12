@@ -90,6 +90,17 @@ class MulOp(OP):
     def gradient(self,node,grad):
         return [grad*node.parents[1],grad*node.parents[0]]
 
+class DivOp(OP):
+    def __call__(self,node_a,node_b):
+        new_node=OP.__call__(self)
+        new_node.parents=[node_a,node_b]
+        new_node.name="node_a/node_b"
+        return new_node
+    def compute(self,node,vals):
+        return vals[0]/vals[1]
+    def gradient(self,node,grad):
+        return [grad/node.parents[1],-1*grad*node.parents[0]/node.parents[1]*node.parents[1]]
+
 class MulByConstOp(OP):
     def __call__(self,node_a,const_val):
         new_node=OP.__call__(self)
@@ -101,6 +112,18 @@ class MulByConstOp(OP):
         return vals[0]*node.const
     def gradient(self,node,grad):
         return [grad*node.const]
+
+class DivByConstOp(OP):
+    def __call__(self,node_a,const_val):
+        new_node=OP.__call__(self)
+        new_node.parents=[node_a]
+        new_node.const=const_val
+        new_node.name="node_b/const"
+        return new_node
+    def compute(self,node,vals):
+        return vals[0]/node.const
+    def gradient(self,node,grad):
+        return [grad/node.const]
 
 class MatMulOp(OP):
     def __call__(self,node_a,node_b,Transpose_A=False,Transpose_B=False):
@@ -214,6 +237,8 @@ sub_by_const_op=SubByConstOp()
 const_by_sub_op=ConstBySubOp()
 neg_op=NegOp()
 mul_op=MulOp()
+div_op=DivOp()
+div_by_const_op=DivByConstOp()
 zeros_like=ZerosLikeOp()
 ones_like=OnesLikeOp()
 place_holder=PlaceholderOp()
