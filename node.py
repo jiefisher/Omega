@@ -6,10 +6,27 @@ class Node:
         self.parents=[parents] if type(parents)==Node else parents
     
     def __add__(self,other):
-        return op.add_op(self,other)
-    
+        if type(other)==Node:
+            return op.add_op(self,other)
+        else:
+            return op.add_by_const(self,other)
+    def __sub__(self,other):
+        if type(other)==Node:
+            return op.sub_op(self,other)
+        else:
+            return op.sub_by_const_op(self,other)
+    def __rsub__(self,other):
+        if type(other)!=Node:
+            return op.const_by_sub_op(self,other)
+    def __neg__(self):
+        return op.neg_op(self)    
     def __mul__(self,other):
-        return op.mul_op(self,other)
+        if type(other)==Node:
+            return op.mul_op(self,other)
+        else:
+            return op.mul_by_const(self,other)
+    __radd__ = __add__
+    __rmul__ = __mul__
 
 
 def Variable(name):
