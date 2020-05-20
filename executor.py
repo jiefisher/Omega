@@ -3,8 +3,8 @@ from node import *
 class Executor:
     def __init__(self,node_list):
         self.node_list=node_list
-    def run(self,y_list,feed_dict):
-        topo_list=utils.topo_sort_list(y_list)
+    def run(self,feed_dict):
+        topo_list=utils.topo_sort_list(self.node_list)
         for x in topo_list:
             x=reversed(x)
             for node in x:

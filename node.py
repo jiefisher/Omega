@@ -40,7 +40,11 @@ def Variable(name):
     placeholder_node.name = name
     return placeholder_node
 
-
+def Parameter(name,const):
+    parameter_node = op.place_holder()
+    parameter_node.name = name
+    parameter_node.const = const
+    return parameter_node
 # a=Node("a")
 # b=Node("b")
 # c=a+b

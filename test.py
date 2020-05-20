@@ -13,4 +13,4 @@ grad_list=gradients.gradients(c,[a,b])
 print(len(grad_list))
 
 m=executor.Executor([c]+grad_list)
-print(m.run([c]+grad_list,{a:np.array([[2]]),b:np.array([[2]])}))
+print(m.run({a:np.array([[2]]),b:np.array([[2]])}))
