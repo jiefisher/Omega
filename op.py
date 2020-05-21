@@ -218,6 +218,143 @@ class BroadcastToOp(OP):
         grad_B = zeros_like(node.parents[1])
         return [grad_A,grad_B]
 
+class Conv2d(OP):
+    def __init__(self, padding=(0, 0), stride=(1, 1)):
+        new_node=OP.__call__(self)
+        new_node.padding = padding
+        new_node.stride = stride
+        
+        new_node.parents=[node_a,node_b]
+        new_node.name="conv(node_a,node_b)"
+
+    def compute(self, node, vals):
+        t = make_padding(vals[0], node.padding)
+        B, C, iH, iW = vals[0].shape
+        iC, oC, kH, kW = vals[1].shape
+        assert C == iC, 'Conv2d channels in not equal.'
+        return batch_conv2d_f(vals[0], vals[1], node.stride)
+    def gradient(self, node, grad):
+        t, weight = precedents
+        gradA=conv2d_grad_x(grad, node.parents[1], node.stride,node.padding)
+        gradB=conv2d_grad_bias(grad, node.parents[0], node.stride,node.padding)
+        return [gradA,gradB]
+
+class Conv2d_GradientXOp(OP):
+    def __init__(self, padding=(0, 0), stride=(1, 1)):
+        new_node=OP.__call__(self)
+        new_node.padding = padding
+        new_node.stride = stride
+        
+        new_node.parents=[node_a,node_b]
+        new_node.name="convgradx(node_a,node_b)"
+    def compute(self,node,vals):
+        return unwrap_padding(
+            batch_conv2d_im_backward_f(vals[0], vals[1], node.stride),
+            node.padding
+        )
+    def gradient(self,node,grad):
+        raise "no grad"
+class Conv2d_Gradient_BiasOp(OP):
+    def __init__(self, padding=(0, 0), stride=(1, 1)):
+        new_node=OP.__call__(self)
+        new_node.padding = padding
+        new_node.stride = stride
+        
+        new_node.parents=[node_a,node_b]
+        new_node.name="convgradx(node_a,node_b)"
+    def compute(self,node,vals):
+        return batch_conv2d_weight_backward_f(
+            vals[0],
+            make_padding(vals[1], node.padding),
+            node.stride
+        )
+    def gradient(self,node,grad):
+        raise "no grad"
+def batch_conv2d_f(x, kernel, stride=(1, 1)):
+    x = im2bchwkl(x, kernel.shape[-2:], stride)
+    return np.tensordot(x, kernel, [(1, 4, 5), (0, 2, 3)]).transpose(0, 3, 1, 2)
+
+
+def batch_conv2d_weight_backward_f(kernel, input, stride=(1, 1)):
+    '''kernel is result tensor grad, input is original tensor'''
+    B, C, H, W = kernel.shape
+    x = im2bchwkl(input, kernel.shape[-2:], dilation=stride)
+    return np.tensordot(x, kernel, [(0, 4, 5), (0, 2, 3)]).transpose(0, 3, 1, 2)
+
+
+def batch_conv2d_im_backward_f(x, kernel, stride=(1, 1)):
+    '''input is result tensor grad, kernel is weight tensor'''
+    ksize = kernel.shape
+    x = dilate_input(x, stride)
+    x = make_padding(x, ((ksize[2]-1), (ksize[3]-1)))
+    return batch_transposed_conv2d_f(x, kernel, invert=True)
+
+
+def batch_transposed_conv2d_f(x, kernel, invert=False):
+    ksize = kernel.shape
+    x = transpose_kernel(
+        im2bchwkl(x, ksize[-2:])
+    )
+    i = 1 if invert else 0
+    return np.tensordot(x, kernel, [(1, 4, 5), (i, 2, 3)]).transpose(0, 3, 1, 2)
+
+
+def im2bchwkl(input, ksize, stride=(1, 1), padding=(0, 0), dilation=(1, 1), writeable=False):
+    if padding != (0, 0):
+        assert not writeable, 'No writable in padding mode.'
+        input = make_padding(input, (padding[0], padding[1]))
+
+    isize = input.shape
+    istrides = input.strides
+
+    H = (isize[2]-(dilation[0]*(ksize[0]-1)+1))/(stride[0])+1
+    W = (isize[3]-(dilation[1]*(ksize[1]-1)+1))/(stride[1])+1
+    assert int(H) == H and int(W) == W, 'conv2d not aligned'
+    H = int(H)
+    W = int(W)
+    istrides = list(istrides+istrides[-2:])
+    istrides[2] *= stride[0]
+    istrides[3] *= stride[1]
+    istrides[4] *= dilation[0]
+    istrides[5] *= dilation[1]
+    return np.lib.stride_tricks.as_strided(input,
+                                           (isize[0], isize[1], H,
+                                            W, ksize[0], ksize[1]),
+                                           istrides,
+                                           writeable=writeable,
+                                           )
+
+
+def make_padding(input, padding):
+    if padding == (0, 0):
+        return input
+    b, c, h, w = input.shape
+    p, q = padding
+    result = np.zeros((b, c, h+2*p, w+2*q), dtype=np.float32)
+    result[:, :, p:-p, q:-q] = input
+    return result
+
+
+def unwrap_padding(input, padding):
+    if padding == (0, 0):
+        return input
+    p, q = padding
+    return input[..., p:-p, q:-q]
+
+
+def transpose_kernel(kernel):
+    return kernel[..., ::-1, ::-1]
+
+
+def dilate_input(input, stride=(1, 1)):
+    if stride == (1, 1):
+        return input
+    isize = input.shape
+    x = np.zeros((isize[0], isize[1], (isize[2]-1) *
+                  stride[0]+1, (isize[3]-1)*stride[1]+1), dtype=np.float32)
+    x[..., ::stride[0], ::stride[1]] = input
+    return x
+
 class PlaceholderOp(OP):
     def __call__(self):
         
@@ -249,3 +386,5 @@ reshape = ReshapeOp()
 reshape_grad = ReshapeGradOp()
 reduce_sum = ReduceSumOp()
 broadcast_to=BroadcastToOp()
+conv2d_grad_x=Conv2d_GradientXOp()
+conv2d_grad_bias=Conv2d_Grad_BiasOp()
