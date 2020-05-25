@@ -219,13 +219,14 @@ class BroadcastToOp(OP):
         return [grad_A,grad_B]
 
 class Conv2d(OP):
-    def __init__(self, padding=(0, 0), stride=(1, 1)):
+    def __call__(self, node_a,node_b,padding=(0, 0), stride=(1, 1)):
         new_node=OP.__call__(self)
         new_node.padding = padding
         new_node.stride = stride
         
         new_node.parents=[node_a,node_b]
         new_node.name="conv(node_a,node_b)"
+        return new_node
 
     def compute(self, node, vals):
         t = make_padding(vals[0], node.padding)
@@ -234,19 +235,19 @@ class Conv2d(OP):
         assert C == iC, 'Conv2d channels in not equal.'
         return batch_conv2d_f(vals[0], vals[1], node.stride)
     def gradient(self, node, grad):
-        t, weight = precedents
         gradA=conv2d_grad_x(grad, node.parents[1], node.stride,node.padding)
-        gradB=conv2d_grad_bias(grad, node.parents[0], node.stride,node.padding)
+        gradB=conv2d_grad_bias(grad, node.parents[1], node.stride,node.padding)
         return [gradA,gradB]
 
 class Conv2d_GradientXOp(OP):
-    def __init__(self, padding=(0, 0), stride=(1, 1)):
+    def __call__(self, node_a,node_b,padding=(0, 0), stride=(1, 1)):
         new_node=OP.__call__(self)
         new_node.padding = padding
         new_node.stride = stride
         
         new_node.parents=[node_a,node_b]
         new_node.name="convgradx(node_a,node_b)"
+        return new_node
     def compute(self,node,vals):
         return unwrap_padding(
             batch_conv2d_im_backward_f(vals[0], vals[1], node.stride),
@@ -255,14 +256,16 @@ class Conv2d_GradientXOp(OP):
     def gradient(self,node,grad):
         raise "no grad"
 class Conv2d_Gradient_BiasOp(OP):
-    def __init__(self, padding=(0, 0), stride=(1, 1)):
+    def __call__(self, node_a,node_b,padding=(0, 0), stride=(1, 1)):
         new_node=OP.__call__(self)
         new_node.padding = padding
         new_node.stride = stride
         
         new_node.parents=[node_a,node_b]
-        new_node.name="convgradx(node_a,node_b)"
+        new_node.name="convgradfilter(node_a,node_b)"
+        return new_node
     def compute(self,node,vals):
+        print(vals[0].shape,vals[1].shape)
         return batch_conv2d_weight_backward_f(
             vals[0],
             make_padding(vals[1], node.padding),
@@ -285,7 +288,7 @@ def batch_conv2d_weight_backward_f(kernel, input, stride=(1, 1)):
 def batch_conv2d_im_backward_f(x, kernel, stride=(1, 1)):
     '''input is result tensor grad, kernel is weight tensor'''
     ksize = kernel.shape
-    x = dilate_input(x, stride)
+    # x = dilate_input(x, stride)
     x = make_padding(x, ((ksize[2]-1), (ksize[3]-1)))
     return batch_transposed_conv2d_f(x, kernel, invert=True)
 
@@ -386,5 +389,6 @@ reshape = ReshapeOp()
 reshape_grad = ReshapeGradOp()
 reduce_sum = ReduceSumOp()
 broadcast_to=BroadcastToOp()
+conv2d=Conv2d()
 conv2d_grad_x=Conv2d_GradientXOp()
-conv2d_grad_bias=Conv2d_Grad_BiasOp()
+conv2d_grad_bias=Conv2d_Gradient_BiasOp()
