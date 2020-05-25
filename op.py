@@ -237,7 +237,7 @@ class Conv2d(OP):
     def gradient(self, node, grad):
         gradA=conv2d_grad_x(grad, node.parents[1], node.stride,node.padding)
         gradB=conv2d_grad_bias(grad, node.parents[1], node.stride,node.padding)
-        return [gradA,gradB]
+        return [gradB,gradA]
 
 class Conv2d_GradientXOp(OP):
     def __call__(self, node_a,node_b,padding=(0, 0), stride=(1, 1)):
