@@ -151,7 +151,7 @@ class ZerosLikeOp(OP):
         new_node.name="zeros(node_a)"
         return new_node
     def compute(self,node,vals):
-        return np.zeros(vals[0])
+        return np.zeros(vals[0].shape)
     def gradient(self,node,grad):
         return [zeros_like(node.parents[0])]
 
@@ -214,7 +214,7 @@ class BroadcastToOp(OP):
     def compute(self,node,vals):
         return np.broadcast_to(vals[0], shape=vals[1].shape)
     def gradient(self,node,grad):
-        grad_A = reduce_sum(grad,axis=0)
+        grad_A = reduce_sum(grad,new_axis=0)
         grad_B = zeros_like(node.parents[1])
         return [grad_A,grad_B]
 

@@ -20,12 +20,31 @@ def topo_sort(endNode):
                 count[parent]-=1
     return topo_list
 def topo_sort_list(node_list):
-    topo_order=[]
-    for x in node_list:
-        y=topo_sort(x)
-        topo_order.append(y)
+    # topo_order=[]
+    # for x in node_list:
+    #     y=topo_sort(x)
+    #     topo_order.append(y)
+    # return topo_order
+    visited = set()
+    topo_order = []
+    for node in node_list:
+        depth_first_search(node, visited, topo_order)
     return topo_order
 
+def depth_first_search(node, visited, topo_order):
+    """
+
+    :param node:
+    :param visited:
+    :param topo_order:
+    :return:
+    """
+    if node in visited:
+        return
+    visited.add(node)
+    for n in node.parents:
+        depth_first_search(n, visited, topo_order)
+    topo_order.append(node)
 
 def sum_list(node_list):
     from operator import add
