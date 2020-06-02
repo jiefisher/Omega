@@ -8,7 +8,7 @@ def topo_sort(endNode):
             count[p]+=1
         else:
             count[p]=1
-        stack.extend(p.parents)
+            stack.extend(p.parents)
     temp=[endNode]
     while temp:
         p=temp.pop()
@@ -20,16 +20,16 @@ def topo_sort(endNode):
                 count[parent]-=1
     return topo_list
 def topo_sort_list(node_list):
-    # topo_order=[]
-    # for x in node_list:
-    #     y=topo_sort(x)
-    #     topo_order.append(y)
+    topo_order=[]
+    for x in node_list:
+        y=topo_sort(x)
+        topo_order.extend(y)
+    return topo_order[::-1]
+    # visited = set()
+    # topo_order = []
+    # for node in node_list:
+    #     depth_first_search(node, visited, topo_order)
     # return topo_order
-    visited = set()
-    topo_order = []
-    for node in node_list:
-        depth_first_search(node, visited, topo_order)
-    return topo_order
 
 def depth_first_search(node, visited, topo_order):
     """
