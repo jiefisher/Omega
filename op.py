@@ -174,9 +174,11 @@ class ReshapeOp(OP):
         new_node.name="Reshape(node_a)"
         return new_node
     def compute(self,node,vals):
+        if node.new_shape[0]==-1:
+            node.new_shape[0]=vals[0].shape[0]
         return vals[0].reshape(node.new_shape)
     def gradient(self,node,grad):
-        return [reshape_grad(node.parents[0])]
+        return [reshape_grad(node.parents[0],grad)]
 
 
 
@@ -184,9 +186,9 @@ class ReshapeOp(OP):
 class ReshapeGradOp(OP):
     def __call__(self,node_a,node_b):
         new_node=OP.__call__(self)
-        new_node.parents=[node_a]
+        new_node.parents=[node_a,node_b]
         
-        new_node.name="ReshapeGrad(node_a)"
+        new_node.name="ReshapeGrad(node_a,node_b)"
         return new_node
     def compute(self,node,vals):
         return vals[1].reshape(vals[0].shape)
@@ -273,6 +275,43 @@ class Conv2d_Gradient_BiasOp(OP):
         )
     def gradient(self,node,grad):
         raise "no grad"
+
+
+class MaxPool(OP):
+    def __call__(self, node_a,ksize,padding=(0, 0), stride=(1, 1)):
+        new_node=OP.__call__(self)
+        new_node.ksize=ksize
+        new_node.padding = padding
+        new_node.stride = stride
+        new_node.max_idx = None
+        
+        new_node.parents=[node_a,node_b]
+        new_node.name="conv(node_a)"
+        return new_node
+
+    def compute(self, node, vals):
+        vals[0] = make_padding(vals[0], node.padding)
+        B, C, iH, iW = vals[0].shape
+        vals[0]=vals[0].reshape(B*C,1,iH,iW)
+        res = im2bchwkl(a, ksize=node.ksize,stride=node.stride)
+        # print(res.shape)
+        res = res.reshape(B * C * iH* iW/(ksize[0]*ksize[1]),ksize[0]*ksize[1])
+        res = res.transpose(1,0)
+        
+        node.max_idx = np.argmax(res, axis=0)
+
+        out = res[max_idx, range(max_idx.size)]
+        
+        H = (iH-(ksize[0]-1)+1)/(stride[0])+1
+        W = (iW-(ksize[1]-1)+1)/(stride[1])+1
+        H =int(H)
+        W = int(W)
+        out = out.reshape(B,C,H,W)
+    def gradient(self, node, grad):
+        raise "no grad"
+
+
+
 def batch_conv2d_f(x, kernel, stride=(1, 1)):
     x = im2bchwkl(x, kernel.shape[-2:], stride)
     return np.tensordot(x, kernel, [(1, 4, 5), (0, 2, 3)]).transpose(0, 3, 1, 2)

@@ -57,6 +57,7 @@ def im2bchwkl(input, ksize, stride=(1, 1), padding=(0, 0), dilation=(1, 1), writ
     assert int(H) == H and int(W) == W, 'conv2d not aligned'
     H = int(H)
     W = int(W)
+    print(H,W)
     istrides = list(istrides+istrides[-2:])
     istrides[2] *= stride[0]
     istrides[3] *= stride[1]
@@ -67,25 +68,55 @@ def im2bchwkl(input, ksize, stride=(1, 1), padding=(0, 0), dilation=(1, 1), writ
                                             W, ksize[0], ksize[1]),
                                            istrides,
                                            writeable=writeable,
-                                           ).reshape(input.shape)
+                                           )
 def unwrap_padding(input, padding):
     if padding == (0, 0):
         return input
     p, q = padding
     return input[..., p:-p, q:-q]
-a=np.arange(1*1*4*4).reshape(1,1,4,4)
+a=np.arange(3*1*4*4).reshape(3,1,4,4)
 res = im2bchwkl(a, ksize=(2,2),stride=(2, 2))
+# print(res.shape)
+res = res.reshape(12,4)
+ms =res
+res = res.transpose(1,0)
 print(res)
 max_idx = np.argmax(res, axis=0)
-print(max_idx.shape)
-# Finally, we get all the max value at each column
-# The result will be 1x9800
-print(range(max_idx.size))
+print(max_idx)
+
 out = res[max_idx, range(max_idx.size)]
-
-# Reshape to the output size: 14x14x5x10
-out = out.reshape(4, 4, 1, 1)
-
-# Transpose to get 5x10x14x14 output
-out = out.transpose(2, 3, 0, 1)
 print(out)
+# Reshape to the output size: 14x14x5x10
+out = out.reshape(3,1,2,2)
+print(out)
+
+dX_col = np.zeros_like(res)
+# flatten the gradient
+dout_flat = out.ravel()
+print(dX_col.shape,dout_flat.shape,max_idx.shape)
+dX_col[max_idx,range(max_idx.size)] = dout_flat
+print(dX_col)
+print(dX_col.shape)
+dX_col = dX_col
+dX_col = im2bchwkl(dX_col, ksize=(2,2),stride=(1, 1))
+print(dX_col.shape)
+print(dX_col.reshape(3,1,4,4).transpose(0, 3, 1, 2))
+print(a)
+# get the original X_reshaped structure from col2im
+
+# dX = col2im_indices(dX_col,a.shape,self.size,self.size,padding=0,stride=self.stride)
+# dX = dX.reshape(self.n_X,self.d_X,self.h_X,self.w_X)
+
+# a=np.ones(1*1*4*4).reshape(1,1,4,4)
+# b=np.ones(1*1*2*2).reshape(1,1,2,2)
+
+
+# x=node.Node("x")
+# y=node.Node("y")
+# z=conv2d(x,y)
+# grads = gradients.gradients(z,[x,y])
+# exe=executor.Executor([z]+grads)
+# output = exe.run(feed_dict={x:a,y:b})
+# print(output[2].shape)
+# print(output[1].shape)
+# print(output[0].shape)
