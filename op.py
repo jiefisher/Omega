@@ -293,22 +293,34 @@ class MaxPool(OP):
         vals[0] = make_padding(vals[0], node.padding)
         B, C, iH, iW = vals[0].shape
         vals[0]=vals[0].reshape(B*C,1,iH,iW)
-        res = im2bchwkl(a, ksize=node.ksize,stride=node.stride)
-        # print(res.shape)
+        res = im2bchwkl(vals[0], ksize=node.ksize,stride=node.stride)
         res = res.reshape(B * C * iH* iW/(ksize[0]*ksize[1]),ksize[0]*ksize[1])
         res = res.transpose(1,0)
-        
+
+        node.res = res
+        node.dx_shape=vals[0].shape
         node.max_idx = np.argmax(res, axis=0)
 
-        out = res[max_idx, range(max_idx.size)]
+        out = res[node.max_idx, range(node.max_idx.size)]
         
         H = (iH-(ksize[0]-1)+1)/(stride[0])+1
         W = (iW-(ksize[1]-1)+1)/(stride[1])+1
         H =int(H)
         W = int(W)
         out = out.reshape(B,C,H,W)
+        return out
     def gradient(self, node, grad):
-        raise "no grad"
+        dX_col = np.zeros_like(node.res)
+        dout_flat = grad.ravel()
+        dX_col[node.max_idx,range(node.max_idx.size)] = dout_flat
+
+        dX_col = dX_col.T.reshape(node.dx_shape)
+        dX_col = im2bchwkl(dX_col, ksize=(node.ksize[0],node.ksize[1]),\
+            stride=(node.stride[0], node.stride[1]))
+        return unwrap_padding(
+            dX_col.reshape(node.dx_shape),
+            node.padding
+        )
 
 
 
