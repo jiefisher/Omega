@@ -1,5 +1,9 @@
 import numpy as np
 from node import Node
+
+gres= np.ones(1)
+gidx= np.ones(1)
+dx_shape= (1,1,1,1)
 class OP:
     def __call__(self):
         new_node=Node()
@@ -193,7 +197,8 @@ class ReshapeGradOp(OP):
     def compute(self,node,vals):
         return vals[1].reshape(vals[0].shape)
     def gradient(self,node,grad):
-        raise "no grad"
+        print("aa")
+        raise NotImplementedError('Gradient of ReshapeGradientOp not supported')
 
 class ReduceSumOp(OP):
     def __call__(self,node_a,new_axis):
@@ -225,21 +230,23 @@ class Conv2d(OP):
         new_node=OP.__call__(self)
         new_node.padding = padding
         new_node.stride = stride
-        
+        new_node.shape=[1,1,1,1]
         new_node.parents=[node_a,node_b]
         new_node.name="conv(node_a,node_b)"
         return new_node
 
     def compute(self, node, vals):
         t = make_padding(vals[0], node.padding)
-        B, C, iH, iW = vals[0].shape
+        B, C, iH, iW = t.shape
         iC, oC, kH, kW = vals[1].shape
         assert C == iC, 'Conv2d channels in not equal.'
-        return batch_conv2d_f(vals[0], vals[1], node.stride)
+        out = batch_conv2d_f(t, vals[1], node.stride)
+        node.shape=out.shape
+        return out
     def gradient(self, node, grad):
         gradA=conv2d_grad_x(grad, node.parents[1], node.stride,node.padding)
-        gradB=conv2d_grad_bias(grad, node.parents[1], node.stride,node.padding)
-        return [gradB,gradA]
+        gradB=conv2d_grad_bias(grad, node.parents[0], node.stride,node.padding)
+        return [gradA,gradB]
 
 class Conv2d_GradientXOp(OP):
     def __call__(self, node_a,node_b,padding=(0, 0), stride=(1, 1)):
@@ -278,61 +285,105 @@ class Conv2d_Gradient_BiasOp(OP):
 
 
 class MaxPool(OP):
+    def __init__(self):
+        self.res=np.ones(1)
+        self.max_idx=np.ones(1)
+        
     def __call__(self, node_a,ksize,padding=(0, 0), stride=(1, 1)):
         new_node=OP.__call__(self)
         new_node.ksize=ksize
         new_node.padding = padding
         new_node.stride = stride
-        new_node.max_idx = None
+        new_node.max_idx = np.ones(1)
+        new_node.res = np.ones(1)
         
-        new_node.parents=[node_a,node_b]
+
+        new_node.parents=[node_a]
         new_node.name="conv(node_a)"
         return new_node
 
     def compute(self, node, vals):
         vals[0] = make_padding(vals[0], node.padding)
         B, C, iH, iW = vals[0].shape
+        print(vals[0].shape)
+        global dx_shape
+        dx_shape = vals[0].shape
         vals[0]=vals[0].reshape(B*C,1,iH,iW)
         res = im2bchwkl(vals[0], ksize=node.ksize,stride=node.stride)
-        res = res.reshape(B * C * iH* iW/(ksize[0]*ksize[1]),ksize[0]*ksize[1])
+        res = res.reshape(int(B * C * iH* iW/(node.ksize[0]*node.ksize[1])),int(node.ksize[0]*node.ksize[1]))
         res = res.transpose(1,0)
 
         node.res = res
+        self.res =res
+        global gres
+        gres = res 
+        
+        # print(self.res)
         node.dx_shape=vals[0].shape
         node.max_idx = np.argmax(res, axis=0)
+        self.max_idx = node.max_idx
+        global gidx
+        gidx = node.max_idx
 
         out = res[node.max_idx, range(node.max_idx.size)]
         
-        H = (iH-(ksize[0]-1)+1)/(stride[0])+1
-        W = (iW-(ksize[1]-1)+1)/(stride[1])+1
-        H =int(H)
-        W = int(W)
+        H = (iH-(node.ksize[0]-1)+1)/(node.stride[0])+1
+        W = (iW-(node.ksize[1]-1)+1)/(node.stride[1])+1
+        H =int(H)-1
+        W = int(W)-1
         out = out.reshape(B,C,H,W)
+        node.val = out
         return out
     def gradient(self, node, grad):
-        dX_col = np.zeros_like(node.res)
-        dout_flat = grad.ravel()
-        dX_col[node.max_idx,range(node.max_idx.size)] = dout_flat
+        return [maxpool_grad(node, grad)]
 
-        dX_col = dX_col.T.reshape(node.dx_shape)
-        dX_col = im2bchwkl(dX_col, ksize=(node.ksize[0],node.ksize[1]),\
+class Maxpool_GradientOp(OP):
+    
+    def __call__(self, node_a,node_b,padding=(0, 0), stride=(1, 1)):
+        new_node=OP.__call__(self)
+        new_node.padding = padding
+        new_node.stride = stride
+        new_node.ksize= node_a.ksize
+        
+        new_node.parents=[node_a,node_b]
+        new_node.name="poolgradient(node_a)"
+        return new_node
+    def compute(self,node,vals):
+
+        global gres
+        global gidx
+        global dx_shape
+        
+        dX_col = np.zeros_like(gres)
+        dout_flat = vals[0].ravel()
+        
+        dX_col[gidx,range(gidx.size)] = dout_flat
+        dX_col = dX_col.T.reshape(dx_shape)
+        print(node.ksize)
+        print(node.stride)
+        dX_col = im2bchwkl(dX_col, ksize=(node.ksize[0]-1,node.ksize[1]-1),\
             stride=(node.stride[0], node.stride[1]))
+        print(dX_col.shape)
         return unwrap_padding(
-            dX_col.reshape(node.dx_shape),
+            dX_col.reshape(dx_shape),
             node.padding
         )
-
-
+    def gradient(self,node,grad):
+        raise "no grad"
 
 def batch_conv2d_f(x, kernel, stride=(1, 1)):
     x = im2bchwkl(x, kernel.shape[-2:], stride)
+    print(x.shape,kernel.shape)
     return np.tensordot(x, kernel, [(1, 4, 5), (0, 2, 3)]).transpose(0, 3, 1, 2)
 
 
 def batch_conv2d_weight_backward_f(kernel, input, stride=(1, 1)):
     '''kernel is result tensor grad, input is original tensor'''
     B, C, H, W = kernel.shape
+    
     x = im2bchwkl(input, kernel.shape[-2:], dilation=stride)
+    print(x.shape,kernel.shape)
+
     return np.tensordot(x, kernel, [(0, 4, 5), (0, 2, 3)]).transpose(0, 3, 1, 2)
 
 
@@ -360,6 +411,8 @@ def im2bchwkl(input, ksize, stride=(1, 1), padding=(0, 0), dilation=(1, 1), writ
 
     isize = input.shape
     istrides = input.strides
+    print(input.dtype)
+    print(isize,istrides)
 
     H = (isize[2]-(dilation[0]*(ksize[0]-1)+1))/(stride[0])+1
     W = (isize[3]-(dilation[1]*(ksize[1]-1)+1))/(stride[1])+1
@@ -443,3 +496,5 @@ broadcast_to=BroadcastToOp()
 conv2d=Conv2d()
 conv2d_grad_x=Conv2d_GradientXOp()
 conv2d_grad_bias=Conv2d_Gradient_BiasOp()
+maxpool = MaxPool()
+maxpool_grad = Maxpool_GradientOp()
