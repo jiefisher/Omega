@@ -37,18 +37,20 @@ a= np.ones(1*3*4*4,"float32").reshape(1,3,4,4)
 b= np.ones(3*4*2*2,"float32").reshape(3,4,2,2)
 grad =gradients.gradients(re,[fx,fk])
 e = executor.Executor([re]+grad)
-print(e.run(feed_dict={fx:a,fk:b})[0].shape)
-exit()
+print(e.run(feed_dict={fx:a,fk:b})[1].shape)
+
 labels=node.Node("label")
 c = mynet()
 x = node.Node("x")
 loss = loss.cross_entropy(c(x),labels)
 a=[np.ones(1*1*28*28).reshape(1,1,28,28),np.zeros(1*1*28*28).reshape(1,1,28,28)]
 b=[np.array([1,0,0,0,0,0,0,0,0,0]).reshape(1,10),np.array([[0,1,0,0,0,0,0,0,0,0]]).reshape(1,10)]
+optimizer=opt.SGD(loss,c.parameters())
+
 for epoch in range(10):
     for batch in range(2):
-        optimizer=opt.SGD(loss,c.parameters())
+        
         
         optimizer.step(feed_dict={x:a[batch],labels:b[batch]})
-print(optimizer.parameters[1].const,optimizer.parameters[0].const)
+        print(optimizer.parameters[1].const,optimizer.parameters[0].const)
 

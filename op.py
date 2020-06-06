@@ -2,8 +2,10 @@ import numpy as np
 from node import Node
 
 gres= np.ones(1)
-gidx= np.ones(1)
-dx_shape= (1,1,1,1)
+gidx= {}
+n=0
+dx_shape= {}
+dX_col = np.ones(1)
 class OP:
     def __call__(self):
         new_node=Node()
@@ -241,11 +243,11 @@ class Conv2d(OP):
         iC, oC, kH, kW = vals[1].shape
         assert C == iC, 'Conv2d channels in not equal.'
         out = batch_conv2d_f(t, vals[1], node.stride)
-        node.shape=out.shape
         return out
     def gradient(self, node, grad):
-        gradA=conv2d_grad_x(grad, node.parents[1], node.stride,node.padding)
-        gradB=conv2d_grad_bias(grad, node.parents[0], node.stride,node.padding)
+        print(node.stride)
+        gradA=conv2d_grad_x(grad, node.parents[1], node.padding,node.stride)
+        gradB=conv2d_grad_bias(grad, node.parents[0], node.padding,node.stride)
         return [gradA,gradB]
 
 class Conv2d_GradientXOp(OP):
@@ -253,11 +255,13 @@ class Conv2d_GradientXOp(OP):
         new_node=OP.__call__(self)
         new_node.padding = padding
         new_node.stride = stride
+        print(new_node.stride,"xx")
         
         new_node.parents=[node_a,node_b]
         new_node.name="convgradx(node_a,node_b)"
         return new_node
     def compute(self,node,vals):
+        print(node.name)
         return unwrap_padding(
             batch_conv2d_im_backward_f(vals[0], vals[1], node.stride),
             node.padding
@@ -299,7 +303,10 @@ class MaxPool(OP):
         
 
         new_node.parents=[node_a]
-        new_node.name="conv(node_a)"
+        global n
+
+        new_node.name="pool(node_a)"+str(n)
+        n=n+1
         return new_node
 
     def compute(self, node, vals):
@@ -307,7 +314,7 @@ class MaxPool(OP):
         B, C, iH, iW = vals[0].shape
         print(vals[0].shape)
         global dx_shape
-        dx_shape = vals[0].shape
+        dx_shape[node.name] = vals[0].shape
         vals[0]=vals[0].reshape(B*C,1,iH,iW)
         res = im2bchwkl(vals[0], ksize=node.ksize,stride=node.stride)
         res = res.reshape(int(B * C * iH* iW/(node.ksize[0]*node.ksize[1])),int(node.ksize[0]*node.ksize[1]))
@@ -317,13 +324,14 @@ class MaxPool(OP):
         self.res =res
         global gres
         gres = res 
+        print(gres.shape,"dygres")
         
         # print(self.res)
         node.dx_shape=vals[0].shape
         node.max_idx = np.argmax(res, axis=0)
         self.max_idx = node.max_idx
         global gidx
-        gidx = node.max_idx
+        gidx [node.name]= node.max_idx
 
         out = res[node.max_idx, range(node.max_idx.size)]
         
@@ -335,17 +343,17 @@ class MaxPool(OP):
         node.val = out
         return out
     def gradient(self, node, grad):
-        return [maxpool_grad(node, grad)]
+        return [maxpool_grad(node, grad,stride=node.stride,node_name=node.name)]
 
 class Maxpool_GradientOp(OP):
     
-    def __call__(self, node_a,node_b,padding=(0, 0), stride=(1, 1)):
+    def __call__(self, node_a,node_b,padding=(0, 0), stride=(1, 1),node_name="pool"):
         new_node=OP.__call__(self)
         new_node.padding = padding
         new_node.stride = stride
         new_node.ksize= node_a.ksize
-        
         new_node.parents=[node_a,node_b]
+        new_node.node_name=node_name
         new_node.name="poolgradient(node_a)"
         return new_node
     def compute(self,node,vals):
@@ -353,19 +361,26 @@ class Maxpool_GradientOp(OP):
         global gres
         global gidx
         global dx_shape
+        global dX_col
         
         dX_col = np.zeros_like(gres)
+        print("aka")
+        print(node.node_name)
+        print(dX_col.shape,gres.shape)
+        # vals[0].dtype="float32"
         dout_flat = vals[0].ravel()
+        dX_col = np.zeros((dX_col.shape[0],dout_flat.shape[0]))
+        print(gres.shape,dout_flat.shape,vals[0].shape,dX_col.shape,gidx[node.node_name].shape)
         
-        dX_col[gidx,range(gidx.size)] = dout_flat
-        dX_col = dX_col.T.reshape(dx_shape)
+        dX_col[gidx[node.node_name],range(gidx[node.node_name].size)] = dout_flat
+        dX_col = dX_col.T.reshape(dx_shape[node.node_name])
         print(node.ksize)
         print(node.stride)
-        dX_col = im2bchwkl(dX_col, ksize=(node.ksize[0]-1,node.ksize[1]-1),\
+        dX_col = im2bchwkl(dX_col, ksize=(node.ksize[0],node.ksize[1]),\
             stride=(node.stride[0], node.stride[1]))
         print(dX_col.shape)
         return unwrap_padding(
-            dX_col.reshape(dx_shape),
+            dX_col.reshape(dx_shape[node.node_name]),
             node.padding
         )
     def gradient(self,node,grad):
@@ -390,7 +405,7 @@ def batch_conv2d_weight_backward_f(kernel, input, stride=(1, 1)):
 def batch_conv2d_im_backward_f(x, kernel, stride=(1, 1)):
     '''input is result tensor grad, kernel is weight tensor'''
     ksize = kernel.shape
-    # x = dilate_input(x, stride)
+    x = dilate_input(x, stride)
     x = make_padding(x, ((ksize[2]-1), (ksize[3]-1)))
     return batch_transposed_conv2d_f(x, kernel, invert=True)
 
@@ -412,6 +427,12 @@ def im2bchwkl(input, ksize, stride=(1, 1), padding=(0, 0), dilation=(1, 1), writ
     isize = input.shape
     istrides = input.strides
     print(input.dtype)
+    if input.dtype=="float64":
+        istrides =list(istrides)
+        for i in range(len(istrides)):
+            istrides[i]/=2
+            istrides[i]=int(istrides[i])
+        istrides=tuple(istrides)
     print(isize,istrides)
 
     H = (isize[2]-(dilation[0]*(ksize[0]-1)+1))/(stride[0])+1

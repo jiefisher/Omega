@@ -17,7 +17,7 @@ def gradients(end_node,node_list):
                 grads=x.op.gradient(x,grad)
                 if x.parents[i] not in grad_list:
                     grad_list[x.parents[i]]=[]
-                # print(grads[i].name)
+                print(grads[i].name)
                 grad_list[x.parents[i]].append(grads[i])
     for node in node_list:
         print(node.name)
