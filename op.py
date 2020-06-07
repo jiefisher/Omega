@@ -243,6 +243,7 @@ class Conv2d(OP):
         iC, oC, kH, kW = vals[1].shape
         assert C == iC, 'Conv2d channels in not equal.'
         out = batch_conv2d_f(t, vals[1], node.stride)
+        
         return out
     def gradient(self, node, grad):
         print(node.stride)
@@ -262,6 +263,7 @@ class Conv2d_GradientXOp(OP):
         return new_node
     def compute(self,node,vals):
         print(node.name)
+
         return unwrap_padding(
             batch_conv2d_im_backward_f(vals[0], vals[1], node.stride),
             node.padding
@@ -310,7 +312,10 @@ class MaxPool(OP):
         return new_node
 
     def compute(self, node, vals):
+        print(vals[0])
+        
         vals[0] = make_padding(vals[0], node.padding)
+        
         B, C, iH, iW = vals[0].shape
         print(vals[0].shape)
         global dx_shape
@@ -319,6 +324,7 @@ class MaxPool(OP):
         res = im2bchwkl(vals[0], ksize=node.ksize,stride=node.stride)
         res = res.reshape(int(B * C * iH* iW/(node.ksize[0]*node.ksize[1])),int(node.ksize[0]*node.ksize[1]))
         res = res.transpose(1,0)
+        
 
         node.res = res
         self.res =res
@@ -341,6 +347,7 @@ class MaxPool(OP):
         W = int(W)-1
         out = out.reshape(B,C,H,W)
         node.val = out
+        
         return out
     def gradient(self, node, grad):
         return [maxpool_grad(node, grad,stride=node.stride,node_name=node.name)]
@@ -378,7 +385,9 @@ class Maxpool_GradientOp(OP):
         print(node.stride)
         dX_col = im2bchwkl(dX_col, ksize=(node.ksize[0],node.ksize[1]),\
             stride=(node.stride[0], node.stride[1]))
-        print(dX_col.shape)
+        # print(dout_flat)
+        # print( vals[1])
+        
         return unwrap_padding(
             dX_col.reshape(dx_shape[node.node_name]),
             node.padding
@@ -427,12 +436,12 @@ def im2bchwkl(input, ksize, stride=(1, 1), padding=(0, 0), dilation=(1, 1), writ
     isize = input.shape
     istrides = input.strides
     print(input.dtype)
-    if input.dtype=="float64":
-        istrides =list(istrides)
-        for i in range(len(istrides)):
-            istrides[i]/=2
-            istrides[i]=int(istrides[i])
-        istrides=tuple(istrides)
+    # if input.dtype=="float64":
+    #     istrides =list(istrides)
+    #     for i in range(len(istrides)):
+    #         istrides[i]/=2
+    #         istrides[i]=int(istrides[i])
+    #     istrides=tuple(istrides)
     print(isize,istrides)
 
     H = (isize[2]-(dilation[0]*(ksize[0]-1)+1))/(stride[0])+1
@@ -445,6 +454,7 @@ def im2bchwkl(input, ksize, stride=(1, 1), padding=(0, 0), dilation=(1, 1), writ
     istrides[3] *= stride[1]
     istrides[4] *= dilation[0]
     istrides[5] *= dilation[1]
+    
     return np.lib.stride_tricks.as_strided(input,
                                            (isize[0], isize[1], H,
                                             W, ksize[0], ksize[1]),

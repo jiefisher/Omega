@@ -12,6 +12,7 @@ class Linear(module.Module):
     def forward(self,x):
         y1=matmul(x,self.w)
         y2=y1+broadcast_to(self.bias,y1)
+        print(y2)
         return y2
 class Conv2d(module.Module):
     def __init__(self,filter_shapes=(1,5,2,2),padding=(0,0),stride=(1,1)):

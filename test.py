@@ -17,7 +17,7 @@ class mynet(module.Module):
         self.pool2 = nn.MaxPool(ksize=(2,2),padding=(0,0),stride=(2,2))
         self.fc1=nn.Linear((16*5*5,120))
         self.fc2=nn.Linear((120,84))
-        self.fc3=nn.Linear((84,10))
+        self.fc3=nn.Linear((84,2))
         # self.relu=relu()
     def forward(self,x):
         y1=self.conv1(x)
@@ -37,14 +37,15 @@ a= np.ones(1*3*4*4,"float32").reshape(1,3,4,4)
 b= np.ones(3*4*2*2,"float32").reshape(3,4,2,2)
 grad =gradients.gradients(re,[fx,fk])
 e = executor.Executor([re]+grad)
-print(e.run(feed_dict={fx:a,fk:b})[1].shape)
+print(e.run(feed_dict={fx:a,fk:b})[1])
 
 labels=node.Node("label")
 c = mynet()
 x = node.Node("x")
 loss = loss.cross_entropy(c(x),labels)
-a=[np.ones(1*1*28*28).reshape(1,1,28,28),np.zeros(1*1*28*28).reshape(1,1,28,28)]
-b=[np.array([1,0,0,0,0,0,0,0,0,0]).reshape(1,10),np.array([[0,1,0,0,0,0,0,0,0,0]]).reshape(1,10)]
+a=[np.ones(1*1*28*28,"float32").reshape(1,1,28,28),np.zeros(1*1*28*28,"float32").reshape(1,1,28,28)]
+
+b=[np.array([1,0]).reshape(1,2),np.array([0,1]).reshape(1,2)]
 optimizer=opt.SGD(loss,c.parameters())
 
 for epoch in range(10):

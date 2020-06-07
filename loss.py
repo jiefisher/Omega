@@ -18,6 +18,7 @@ class CrossEntropyOp(OP):
         logits = vals[0]
         actual = vals[1]
         safe_log_softmax = logits - log_sum_exp(logits)
+    
         return np.mean(-1*np.sum(actual * safe_log_softmax, axis=1), keepdims=True)
 
     def gradient(self, node, grad):
