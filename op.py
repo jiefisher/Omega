@@ -95,6 +95,18 @@ class MulOp(OP):
         return vals[0]*vals[1]
     def gradient(self,node,grad):
         return [grad*node.parents[1],grad*node.parents[0]]
+class EmbedOp(OP):
+    def __call__(self,node_a,node_b):
+        new_node=OP.__call__(self)
+        new_node.parents=[node_a,node_b]
+        new_node.name="embed(node_a)"
+        return new_node
+    def compute(self,node,vals):
+        max_value=np.max(vals[0])+1
+        vals_eye=np.eye(max_value)[vals[0]]
+        return np.dot(vals_eye.reshape(-1,vals[1].shape[0]),vals[1])
+    def gradient(self,node,grad):
+        return [None,embed(node.parents[0],grad)]
 
 class DivOp(OP):
     def __call__(self,node_a,node_b):
@@ -215,10 +227,10 @@ class ReduceSumOp(OP):
         return [grad]
 
 class BroadcastToOp(OP):
-    def __call__(self,node_a,node_b):
+    def __call__(self,node_a,node_b,):
         new_node=OP.__call__(self)
         new_node.parents=[node_a,node_b]
-        new_node.name="BroadcastTo(node_a,node_b)"
+        new_node.name="BroadcastTo({})".format(node_a.name)
         return new_node
     def compute(self,node,vals):
         return np.broadcast_to(vals[0], shape=vals[1].shape)
@@ -246,7 +258,6 @@ class Conv2d(OP):
         
         return out
     def gradient(self, node, grad):
-        print(node.stride)
         gradA=conv2d_grad_x(grad, node.parents[1], node.padding,node.stride)
         gradB=conv2d_grad_bias(grad, node.parents[0], node.padding,node.stride)
         return [gradA,gradB]
@@ -262,7 +273,6 @@ class Conv2d_GradientXOp(OP):
         new_node.name="convgradx(node_a,node_b)"
         return new_node
     def compute(self,node,vals):
-        print(node.name)
 
         return unwrap_padding(
             batch_conv2d_im_backward_f(vals[0], vals[1], node.stride),
@@ -405,7 +415,7 @@ def batch_conv2d_weight_backward_f(kernel, input, stride=(1, 1)):
     '''kernel is result tensor grad, input is original tensor'''
     B, C, H, W = kernel.shape
     
-    x = im2bchwkl(input, kernel.shape[-2:], dilation=stride)
+    x = im2bchwkl(input, kernel.shape[-2:], stride = stride,dilation=stride)
     print(x.shape,kernel.shape)
 
     return np.tensordot(x, kernel, [(0, 4, 5), (0, 2, 3)]).transpose(0, 3, 1, 2)
@@ -435,14 +445,6 @@ def im2bchwkl(input, ksize, stride=(1, 1), padding=(0, 0), dilation=(1, 1), writ
 
     isize = input.shape
     istrides = input.strides
-    print(input.dtype)
-    # if input.dtype=="float64":
-    #     istrides =list(istrides)
-    #     for i in range(len(istrides)):
-    #         istrides[i]/=2
-    #         istrides[i]=int(istrides[i])
-    #     istrides=tuple(istrides)
-    print(isize,istrides)
 
     H = (isize[2]-(dilation[0]*(ksize[0]-1)+1))/(stride[0])+1
     W = (isize[3]-(dilation[1]*(ksize[1]-1)+1))/(stride[1])+1
@@ -529,3 +531,4 @@ conv2d_grad_x=Conv2d_GradientXOp()
 conv2d_grad_bias=Conv2d_Gradient_BiasOp()
 maxpool = MaxPool()
 maxpool_grad = Maxpool_GradientOp()
+embed = EmbedOp()

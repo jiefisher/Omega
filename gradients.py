@@ -17,11 +17,13 @@ def gradients(end_node,node_list):
                 grads=x.op.gradient(x,grad)
                 if x.parents[i] not in grad_list:
                     grad_list[x.parents[i]]=[]
-                print(grads[i].name)
+                # print(grads[i].name)
                 grad_list[x.parents[i]].append(grads[i])
     for node in node_list:
-        print(node.name)
+        if node!=None:
+            print(node.name)
     print("===")
     for node in node_to_grad:
-        print(node.name)
+        if node!=None:
+            print(node.name)
     return [node_to_grad[n] for n in node_list]
