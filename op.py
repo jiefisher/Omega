@@ -23,6 +23,7 @@ class AddOp(OP):
         new_node.name="node_a+node_b"
         return new_node
     def compute(self,node,vals):
+        
         return vals[0]+vals[1]
     def gradient(self,node,grad):
         return [grad,grad]
@@ -104,9 +105,30 @@ class EmbedOp(OP):
     def compute(self,node,vals):
         max_value=np.max(vals[0])+1
         vals_eye=np.eye(max_value)[vals[0]]
-        return np.dot(vals_eye.reshape(-1,vals[1].shape[0]),vals[1])
+        t= np.dot(vals_eye.reshape(-1,vals[1].shape[0]),vals[1])
+
+        return t.reshape(vals[0].shape[0],t.shape[0],t.shape[1])
     def gradient(self,node,grad):
-        return [None,embed(node.parents[0],grad)]
+        return [None,embed_grad(node.parents[0],node.parents[1],grad)]
+
+class EmbedGradientOp(OP):
+    def __call__(self,node_a,node_b,node_c):
+        #node_a:input
+        #node_b:embed_param
+        #node_c:grad
+        new_node=OP.__call__(self)
+        new_node.parents=[node_a,node_b,node_c]
+        new_node.name="embed_grad(node_a)"
+        return new_node
+    def compute(self,node,vals):
+        vals[2] = vals[2].reshape(vals[2].shape[0]*vals[2].shape[1],vals[2].shape[2])
+        max_value=np.max(vals[0])+1
+        vals_eye=np.eye(max_value)[vals[0]]
+        t= np.dot(vals_eye.reshape(vals[1].shape[0],-1),vals[2])
+
+        return t
+    def gradient(self,node,grad):
+        raise "no grad"
 
 class DivOp(OP):
     def __call__(self,node_a,node_b):
@@ -156,6 +178,7 @@ class MatMulOp(OP):
             vals[0]=vals[0].T
         if node.Trans_B:
             vals[1]=vals[1].T
+        t=  np.dot(vals[0],vals[1])
         return np.dot(vals[0],vals[1])
     def gradient(self,node,grad):
         grad_A=matmul(grad,node.parents[1],Transpose_A=False,Transpose_B=True)
@@ -194,6 +217,7 @@ class ReshapeOp(OP):
     def compute(self,node,vals):
         if node.new_shape[0]==-1:
             node.new_shape[0]=vals[0].shape[0]
+        print(vals[0].shape,node.new_shape)
         return vals[0].reshape(node.new_shape)
     def gradient(self,node,grad):
         return [reshape_grad(node.parents[0],grad)]
@@ -532,3 +556,4 @@ conv2d_grad_bias=Conv2d_Gradient_BiasOp()
 maxpool = MaxPool()
 maxpool_grad = Maxpool_GradientOp()
 embed = EmbedOp()
+embed_grad = EmbedGradientOp()

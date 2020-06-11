@@ -56,8 +56,8 @@ class SigmoidOp(OP):
 
 
 def softmax_func(x):
-    stable_values = x - np.max(x, axis=1, keepdims=True)
-    return np.exp(stable_values) / np.sum(np.exp(stable_values), axis=1, keepdims=True)
+    stable_values = x - np.max(x, axis=-1, keepdims=True)
+    return np.exp(stable_values) / np.sum(np.exp(stable_values), axis=-1, keepdims=True)
 
 class SoftmaxOp(OP):
     def __call__(self, node_A):
@@ -67,13 +67,38 @@ class SoftmaxOp(OP):
         return new_node
 
     def compute(self, node, vals):
+        t= softmax_func(vals[0])
         return softmax_func(vals[0])
 
 
     def gradient(self, node, output_grads):
-        raise NotImplementedError('Not yet implemented, Please use CrossEntropy operator')
+        return [softmax_grad(output_grads)]
+
+class SoftmaxGradientOp(OP):
+    def __call__(self, node_A):
+        """node_B is output_grad"""
+        new_node = OP.__call__(self)
+        new_node.parents = [node_A]
+        new_node.name = "SoftmaxGradient(%s)" % (node_A.name)
+        return new_node
+
+    def compute(self, node, vals):
+        s = vals[0].reshape(-1,1)
+
+        t = np.diagflat(s) - np.dot(s, s.T)
+        origin_shape=vals[0].shape
+        val = vals[0].reshape(1,-1)
+        res= np.dot(val,t)
+        res=res.reshape(origin_shape)
+        print(t)
+        return res
+
+
+    def gradient(self, node, output_grad):
+        raise NotImplementedError('Gradient of ReluGradientOp not implemented')
 
 relu = ReluOp()
 sigmoid = SigmoidOp()
 softmax = SoftmaxOp()
 relu_grad = ReluGradientOp()
+softmax_grad = SoftmaxGradientOp()

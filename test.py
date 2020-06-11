@@ -10,6 +10,18 @@ import loss
 import opt
 from activation import  *
 
+val=np.array([[0.1,0.2,0.3],[0.1,0.2,0.3]]).reshape(2,3)
+s = val.reshape(-1,1)
+
+t = np.diagflat(s) - np.dot(s, s.T)
+origin_shape=val.shape
+val = val.reshape(1,-1)
+res= np.dot(val,t)
+res=res.reshape(origin_shape)
+print(res)
+print(res.shape)
+print(res)
+print(t.shape,val.shape,np.diagflat(s).shape,np.dot(s, s.T).shape)
 
 em = np.array([[0.1, 0.2, 0.3, 0.4],
      [0.5, 0.6, 0.7, 0.8],
@@ -22,22 +34,22 @@ inx=np.array([0, 2, 1, 2]).reshape(1,4)
 
 # exit()
 x = node.Node("x")
-c=node.Node("c")
-y=embed(x,c)
-grads= gradients.gradients(y,[c])
-ec = executor.Executor([c]+grads)
-x = ec.run(feed_dict={x:inx,c:em})
+
+y=softmax(x)
+grads= gradients.gradients(y,[x])
+ec = executor.Executor([y]+grads)
+x = ec.run(feed_dict={x:inx})
 print(x[0])
 print(x[1])
-
 class embnet(module.Module):
     def __init__(self):
         self.embed = nn.Embedding(3,4)
         self.embed.embed_w.const = em
-        self.fc3=nn.Linear((4,2))
+        self.fc3=nn.Linear((20,2))
     def forward(self,x):
         y1=self.embed(x)
-        y = self.fc3(y1)
+        y2=reshape(y1,[-1,4*5])
+        y = self.fc3(y2)
         return y
 x = node.Node("x")
 labels=node.Node("label")
@@ -46,7 +58,7 @@ c = embnet()
 
 
 loss = loss.cross_entropy(c(x),labels)
-a=[np.array([0, 2, 1, 2]).reshape(1,4),np.array([0, 2, 1, 2]).reshape(1,4)]
+a=[np.array([0, 2, 1, 2,1]).reshape(1,5),np.array([0, 2, 1, 2,2]).reshape(1,5)]
 b=[np.array([1,0]).reshape(1,2),np.array([0,1]).reshape(1,2)]
 optimizer=opt.SGD(loss,c.parameters())
 
