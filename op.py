@@ -203,6 +203,7 @@ class OnesLikeOp(OP):
         new_node.name="Ones(node_a)"
         return new_node
     def compute(self,node,vals):
+        print(vals[0])
         return np.ones(vals[0].shape)
     def gradient(self,node,grad):
         return [zeros_like(node.parents[0])]
@@ -217,7 +218,7 @@ class ReshapeOp(OP):
     def compute(self,node,vals):
         if node.new_shape[0]==-1:
             node.new_shape[0]=vals[0].shape[0]
-        print(vals[0].shape,node.new_shape)
+        # print(vals[0].shape,node.new_shape)
         return vals[0].reshape(node.new_shape)
     def gradient(self,node,grad):
         return [reshape_grad(node.parents[0],grad)]
@@ -235,7 +236,7 @@ class ReshapeGradOp(OP):
     def compute(self,node,vals):
         return vals[1].reshape(vals[0].shape)
     def gradient(self,node,grad):
-        print("aa")
+        
         raise NotImplementedError('Gradient of ReshapeGradientOp not supported')
 
 class ReduceSumOp(OP):
@@ -262,6 +263,60 @@ class BroadcastToOp(OP):
         grad_A = reduce_sum(grad,new_axis=0)
         grad_B = zeros_like(node.parents[1])
         return [grad_A,grad_B]
+
+class SplitOp(OP):
+    def __call__(self,node_a,nums=1,axis=1):
+        node_list = []
+        for i in range(nums):
+            new_node=OP.__call__(self)
+            new_node.parents=[node_a]
+            new_node.nums=nums
+            new_node.axis=axis
+            new_node.name="Split({})".format(node_a.name)+str(i)
+            node_list.append(new_node)
+        return node_list
+    def compute(self,nlist,vals):
+        print("====>",type(nlist))
+        return np.split(vals[0], nlist.nums,nlist.axis)
+    def gradient(self,nlist,grad):
+        if type(nlist) == list:
+            return [concat(grad,nlist[0].axis,nlist[0].nums)]
+        else:
+            return [concat(grad,nlist.axis,nlist.nums)]
+
+class ConcatOp(OP):
+    def __call__(self,node_a,axis=1,nums=0):
+        new_node=OP.__call__(self)
+        if type(node_a) == list:
+            new_node.parents=node_a
+            new_node.axis=axis
+            new_node.nums=nums
+            
+            new_node.name="Concat({})".format(node_a[0].name)
+        else:
+            new_node.parents=[node_a]
+            new_node.axis=axis
+            new_node.nums=nums
+            
+            new_node.name="Concat({})".format(node_a.name)
+        return new_node
+    def compute(self,node,vals):
+        return np.concatenate(vals[0],node.axis)
+    def gradient(self,node,grad):
+        return [concat_grad(grad,node.axis)]
+
+class ConcatGradientOp(OP):
+    def __call__(self,node_a,axis=1):
+        new_node=OP.__call__(self)
+        new_node.parents=[node_a]
+        new_node.axis=axis
+        new_node.name="Concat_grad({})".format(node_a.name)
+        return new_node
+    def compute(self,node,vals):
+        nums=vals[0].shape[node.axis]
+        return np.split(vals[0],nums,node.axis)
+    def gradient(self,node,grad):
+        raise "no grad"
 
 class Conv2d(OP):
     def __call__(self, node_a,node_b,padding=(0, 0), stride=(1, 1)):
@@ -291,7 +346,6 @@ class Conv2d_GradientXOp(OP):
         new_node=OP.__call__(self)
         new_node.padding = padding
         new_node.stride = stride
-        print(new_node.stride,"xx")
         
         new_node.parents=[node_a,node_b]
         new_node.name="convgradx(node_a,node_b)"
@@ -314,7 +368,7 @@ class Conv2d_Gradient_BiasOp(OP):
         new_node.name="convgradfilter(node_a,node_b)"
         return new_node
     def compute(self,node,vals):
-        print(vals[0].shape,vals[1].shape)
+        # print(vals[0].shape,vals[1].shape)
         return batch_conv2d_weight_backward_f(
             vals[0],
             make_padding(vals[1], node.padding),
@@ -346,12 +400,12 @@ class MaxPool(OP):
         return new_node
 
     def compute(self, node, vals):
-        print(vals[0])
+        # print(vals[0])
         
         vals[0] = make_padding(vals[0], node.padding)
         
         B, C, iH, iW = vals[0].shape
-        print(vals[0].shape)
+        # print(vals[0].shape)
         global dx_shape
         dx_shape[node.name] = vals[0].shape
         vals[0]=vals[0].reshape(B*C,1,iH,iW)
@@ -364,18 +418,18 @@ class MaxPool(OP):
         self.res =res
         global gres
         gres = res 
-        print(gres.shape,"dygres")
+        # print(gres.shape,"dygres")
         
-        # print(self.res)
+        # # print(self.res)
         node.dx_shape=vals[0].shape
         node.max_idx = np.argmax(res, axis=0)
         self.max_idx = node.max_idx
         global gidx
         gidx [node.name]= node.max_idx
-        # print(node.max_idx.shape,res.shape,node.max_idx.size,range(node.max_idx.size))
+        # # print(node.max_idx.shape,res.shape,node.max_idx.size,range(node.max_idx.size))
         
         out = res[node.max_idx, range(node.max_idx.size)]
-        # print(out.shape)
+        # # print(out.shape)
         # exit()
         H = (iH-(node.ksize[0]-1)+1)/(node.stride[0])+1
         W = (iW-(node.ksize[1]-1)+1)/(node.stride[1])+1
@@ -410,15 +464,15 @@ class Maxpool_GradientOp(OP):
         # vals[0].dtype="float32"
         dout_flat = vals[0].ravel()
         dX_col = np.zeros((dX_col.shape[0],dout_flat.shape[0]))
-        print(gres.shape,dout_flat.shape,vals[0].shape,dX_col.shape,gidx[node.node_name].shape)
+        # print(gres.shape,dout_flat.shape,vals[0].shape,dX_col.shape,gidx[node.node_name].shape)
         
         dX_col[gidx[node.node_name],range(gidx[node.node_name].size)] = dout_flat
         dX_col = dX_col.T.reshape(dx_shape[node.node_name])
 
         dX_col = im2bchwkl(dX_col, ksize=(node.ksize[0],node.ksize[1]),\
             stride=(node.stride[0], node.stride[1]))
-        # print(dout_flat)
-        # print( vals[1])
+        # # print(dout_flat)
+        # # print( vals[1])
         
         return unwrap_padding(
             dX_col.reshape(dx_shape[node.node_name]),
@@ -429,7 +483,7 @@ class Maxpool_GradientOp(OP):
 
 def batch_conv2d_f(x, kernel, stride=(1, 1)):
     x = im2bchwkl(x, kernel.shape[-2:], stride)
-    print(x.shape,kernel.shape)
+    # print(x.shape,kernel.shape)
     return np.tensordot(x, kernel, [(1, 4, 5), (0, 2, 3)]).transpose(0, 3, 1, 2)
 
 
@@ -438,7 +492,7 @@ def batch_conv2d_weight_backward_f(kernel, input, stride=(1, 1)):
     B, C, H, W = kernel.shape
     
     x = im2bchwkl(input, kernel.shape[-2:], stride = stride,dilation=stride)
-    print(x.shape,kernel.shape)
+    # print(x.shape,kernel.shape)
 
     return np.tensordot(x, kernel, [(0, 4, 5), (0, 2, 3)]).transpose(0, 3, 1, 2)
 
@@ -555,3 +609,6 @@ maxpool = MaxPool()
 maxpool_grad = Maxpool_GradientOp()
 embed = EmbedOp()
 embed_grad = EmbedGradientOp()
+split = SplitOp()
+concat = ConcatOp()
+concat_grad = ConcatGradientOp()

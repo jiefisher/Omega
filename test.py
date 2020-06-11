@@ -10,6 +10,23 @@ import loss
 import opt
 from activation import  *
 
+inx=np.arange(6).reshape(1,2,3)
+
+x = node.Node("x")
+
+y=split(x,2,1)
+# z=concat(y,1)
+z=y[0]
+print(type(z))
+print(y[0].name)
+grads= gradients.gradients(z,[x])
+ec = executor.Executor([z]+grads)
+m = ec.run(feed_dict={x:inx})
+print(m[0])
+print(m[1])
+exit()
+
+
 val=np.array([[0.1,0.2,0.3],[0.1,0.2,0.3]]).reshape(2,3)
 s = val.reshape(-1,1)
 
@@ -98,5 +115,5 @@ optimizer=opt.SGD(loss,cnn.parameters())
 for epoch in range(10):
     for batch in range(2):
         optimizer.step(feed_dict={x:a[batch],labels:b[batch]})
-        print(optimizer.parameters[1].const,optimizer.parameters[0].const)
+        # print(optimizer.parameters[1].const,optimizer.parameters[0].const)
 

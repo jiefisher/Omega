@@ -22,8 +22,10 @@ class Optimizer:
 
 
 class SGD(Optimizer):
-    def step(self, feed_dict,lr=0.001):
+    def step(self, feed_dict,lr=0.1):
         output = self.exe.run(feed_dict)
+        #print("=============================>",output[0])
         for i in range(len(self.parameters)):
             self.parameters[i].const-=lr*output[i+1]
+        
         
