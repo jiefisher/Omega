@@ -95,7 +95,7 @@ class SoftmaxGradientOp(OP):
 
 
     def gradient(self, node, output_grad):
-        raise NotImplementedError('Gradient of ReluGradientOp not implemented')
+        raise NotImplementedError('Gradient of SoftmaxGradientOp not implemented')
 
 relu = ReluOp()
 sigmoid = SigmoidOp()

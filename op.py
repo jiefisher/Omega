@@ -372,9 +372,11 @@ class MaxPool(OP):
         self.max_idx = node.max_idx
         global gidx
         gidx [node.name]= node.max_idx
-
-        out = res[node.max_idx, range(node.max_idx.size)]
+        # print(node.max_idx.shape,res.shape,node.max_idx.size,range(node.max_idx.size))
         
+        out = res[node.max_idx, range(node.max_idx.size)]
+        # print(out.shape)
+        # exit()
         H = (iH-(node.ksize[0]-1)+1)/(node.stride[0])+1
         W = (iW-(node.ksize[1]-1)+1)/(node.stride[1])+1
         H =int(H)-1
@@ -405,9 +407,6 @@ class Maxpool_GradientOp(OP):
         global dX_col
         
         dX_col = np.zeros_like(gres)
-        print("aka")
-        print(node.node_name)
-        print(dX_col.shape,gres.shape)
         # vals[0].dtype="float32"
         dout_flat = vals[0].ravel()
         dX_col = np.zeros((dX_col.shape[0],dout_flat.shape[0]))
@@ -415,8 +414,7 @@ class Maxpool_GradientOp(OP):
         
         dX_col[gidx[node.node_name],range(gidx[node.node_name].size)] = dout_flat
         dX_col = dX_col.T.reshape(dx_shape[node.node_name])
-        print(node.ksize)
-        print(node.stride)
+
         dX_col = im2bchwkl(dX_col, ksize=(node.ksize[0],node.ksize[1]),\
             stride=(node.stride[0], node.stride[1]))
         # print(dout_flat)

@@ -26,13 +26,9 @@ print(t.shape,val.shape,np.diagflat(s).shape,np.dot(s, s.T).shape)
 em = np.array([[0.1, 0.2, 0.3, 0.4],
      [0.5, 0.6, 0.7, 0.8],
      [0.9, 0.0, 0.1, 0.2]])
-# print(em.shape)
-inx=np.array([0, 2, 1, 2]).reshape(1,4)
-# max_value=np.max(inx)+1
-# vals_eye=np.eye(max_value)[inx]
-# print(np.dot(vals_eye.reshape(-1,3),em))
 
-# exit()
+inx=np.array([0, 2, 1, 2]).reshape(1,4)
+
 x = node.Node("x")
 
 y=softmax(x)
@@ -57,17 +53,16 @@ labels=node.Node("label")
 c = embnet()
 
 
-loss = loss.cross_entropy(c(x),labels)
+eloss = loss.cross_entropy(c(x),labels)
 a=[np.array([0, 2, 1, 2,1]).reshape(1,5),np.array([0, 2, 1, 2,2]).reshape(1,5)]
 b=[np.array([1,0]).reshape(1,2),np.array([0,1]).reshape(1,2)]
-optimizer=opt.SGD(loss,c.parameters())
+optimizer=opt.SGD(eloss,c.parameters())
 
 for epoch in range(10):
     for batch in range(2):
         optimizer.step(feed_dict={x:a[batch],labels:b[batch]})
         print(optimizer.parameters[1].const,optimizer.parameters[0].const)
 
-exit()
 class mynet(module.Module):
     def __init__(self):
         self.conv1 = nn.Conv2d(filter_shapes=(1,6,5,5),padding=(2,2),stride=(1,1))
@@ -88,16 +83,16 @@ class mynet(module.Module):
         y = self.fc3(y6)
         return y
 
-x = node.Variable("x")
+x = node.Node("x")
 labels=node.Node("label")
 
-c = mynet()
+cnn = mynet()
 
 
-loss = loss.cross_entropy(c(x),labels)
+loss = loss.cross_entropy(cnn(x),labels)
 a=[np.ones(1*1*28*28,"float32").reshape(1,1,28,28),np.zeros(1*1*28*28,"float32").reshape(1,1,28,28)]
 b=[np.array([1,0]).reshape(1,2),np.array([0,1]).reshape(1,2)]
-optimizer=opt.SGD(loss,c.parameters())
+optimizer=opt.SGD(loss,cnn.parameters())
 
 
 for epoch in range(10):
