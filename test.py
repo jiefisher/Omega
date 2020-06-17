@@ -10,21 +10,6 @@ import loss
 import opt
 from activation import  *
 
-inx=np.arange(6).reshape(1,2,3)
-
-x = node.Node("x")
-
-y=split(x,2,1)
-# z=concat(y,1)
-z=y[0]
-print(type(z))
-print(y[0].name)
-grads= gradients.gradients(z,[x])
-ec = executor.Executor([z]+grads)
-m = ec.run(feed_dict={x:inx})
-print(m[0])
-print(m[1])
-exit()
 
 
 val=np.array([[0.1,0.2,0.3],[0.1,0.2,0.3]]).reshape(2,3)
@@ -46,19 +31,12 @@ em = np.array([[0.1, 0.2, 0.3, 0.4],
 
 inx=np.array([0, 2, 1, 2]).reshape(1,4)
 
-x = node.Node("x")
 
-y=softmax(x)
-grads= gradients.gradients(y,[x])
-ec = executor.Executor([y]+grads)
-x = ec.run(feed_dict={x:inx})
-print(x[0])
-print(x[1])
 class embnet(module.Module):
     def __init__(self):
         self.embed = nn.Embedding(3,4)
         self.embed.embed_w.const = em
-        self.fc3=nn.Linear((20,2))
+        self.fc3=nn.rnn((20,2))
     def forward(self,x):
         y1=self.embed(x)
         y2=reshape(y1,[-1,4*5])
@@ -79,7 +57,7 @@ for epoch in range(10):
     for batch in range(2):
         optimizer.step(feed_dict={x:a[batch],labels:b[batch]})
         print(optimizer.parameters[1].const,optimizer.parameters[0].const)
-
+exit()
 class mynet(module.Module):
     def __init__(self):
         self.conv1 = nn.Conv2d(filter_shapes=(1,6,5,5),padding=(2,2),stride=(1,1))
