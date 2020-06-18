@@ -8,16 +8,21 @@ def gradients(end_node,node_list):
     node_to_grad={}
     topo_list=utils.topo_sort_list([end_node])
 
-    
     for x in reversed(topo_list):
+        print("=====",x.name)
+    for x in reversed(topo_list):
+        # print(x.name)
         grad = utils.sum_list(grad_list[x])
         node_to_grad[x]=grad
         for i in range(len(x.parents)):
             grads=x.op.gradient(x,grad)
             if x.parents[i] not in grad_list:
                 grad_list[x.parents[i]]=[]
-            # print(x.name)
-            grad_list[x.parents[i]].append(grads[i])
+    
+            if len(x.parents) == len(grads):
+                grad_list[x.parents[i]].append(grads[i])
+            elif len(grads)==1:
+                grad_list[x.parents[i]].append(grads[0])
         # print(node_list)
         for nd in node_list:
             

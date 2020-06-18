@@ -22,13 +22,31 @@ from activation import  *
 a=np.array([0, 2, 1, 2]).reshape(1,2,2)
 b=np.array([0, 2, 1, 2]).reshape(1,2,2)
 x = node.Node("x")
-# y = node.Node("y")
-z = split(x,nums=2,axis=1)
-c=z[0]
-grads = gradients.gradients(c,[z,x])
-exe=executor.Executor([c]+grads)
-output = exe.run(feed_dict={x:a})
-print(output)
+w1 = node.Node("w1")
+w2 = node.Node("w2")
+w3 = node.Node("w3")
+s_zeros = node.Node("s_zeros")
+h = []
+y = []
+inputs = split(x,nums=2,axis=1)
+for i in range(len(inputs)):
+    if i-1<0:
+        ht_1=s_zeros
+    else:
+        ht_1=h[i-1]
+    ht=sigmoid(matmul(inputs[i],w1)+matmul(ht_1,w2))
+    h.append(ht)
+    yt=sigmoid(matmul(ht,w3))
+    y.append(yt)
+print(len(inputs))
+c=concat(y,1)    
+grads = gradients.gradients(yt,[w1,w2,w3])
+# grads = gradients.gradients(c,[x])
+exe=executor.Executor([yt]+grads)
+w_const = np.random.randn(2, 2)/(2* 2)
+s_const= np.random.randn(1, 2)/(1* 2)
+output = exe.run(feed_dict={x:a,w1:w_const,w2:w_const,w3:w_const,s_zeros:s_const})
+print(output[0])
 exit()
 
 val=np.array([[0.1,0.2,0.3],[0.1,0.2,0.3]]).reshape(2,3)

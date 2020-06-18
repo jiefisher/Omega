@@ -200,12 +200,15 @@ class OnesLikeOp(OP):
     def __call__(self,node_a):
         new_node=OP.__call__(self)
         new_node.parents=[node_a]
+        
         new_node.name="Ones(node_a)"
         return new_node
     def compute(self,node,vals):
-        print(vals[0][0].shape)
+        print(vals[0])
+        # exit()
         return np.ones(vals[0][0].shape)
     def gradient(self,node,grad):
+        
         return [zeros_like(node.parents[0])]
 
 class ReshapeOp(OP):
@@ -305,13 +308,14 @@ class ConcatOp(OP):
             new_node.name="Concat({})".format(node_a.name)
         return new_node
     def compute(self,node,vals):
-        print(vals[0].shape)
-        if type(vals[0])!=list:
+        print(type(node.parents))
+        print(vals)
+        if type(node.parents)!=list:
             concat_list = [np.zeros_like(vals[0]) for i in range(node.nums)]
             concat_list[node.node_index]=vals[0]
             return np.concatenate(concat_list,node.axis)
         else:
-            return np.concatenate(vals[0],node.axis)
+            return np.concatenate(vals,node.axis)
     def gradient(self,node,grad):
         return [concat_grad(grad,node.axis)]
 
@@ -323,6 +327,8 @@ class ConcatGradientOp(OP):
         new_node.name="Concat_grad({})".format(node_a.name)
         return new_node
     def compute(self,node,vals):
+        print(vals)
+        print(node.axis)
         nums=vals[0].shape[node.axis]
         return np.split(vals[0],nums,node.axis)
     def gradient(self,node,grad):
