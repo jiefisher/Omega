@@ -203,8 +203,8 @@ class OnesLikeOp(OP):
         new_node.name="Ones(node_a)"
         return new_node
     def compute(self,node,vals):
-        print(vals[0])
-        return np.ones(vals[0].shape)
+        print(vals[0][0].shape)
+        return np.ones(vals[0][0].shape)
     def gradient(self,node,grad):
         return [zeros_like(node.parents[0])]
 
@@ -272,20 +272,24 @@ class SplitOp(OP):
             new_node.parents=[node_a]
             new_node.nums=nums
             new_node.axis=axis
+            new_node.index=i
             new_node.name="Split({})".format(node_a.name)+str(i)
             node_list.append(new_node)
         return node_list
     def compute(self,nlist,vals):
-        print("====>",type(nlist))
-        return np.split(vals[0], nlist.nums,nlist.axis)
+        print("====>",type(nlist),nlist.name)
+        if type(nlist) == list:
+            return np.split(vals[0], nlist.nums,nlist.axis)
+        else:
+            return np.split(vals[0], nlist.nums,nlist.axis)[nlist.index]
     def gradient(self,nlist,grad):
         if type(nlist) == list:
             return [concat(grad,nlist[0].axis,nlist[0].nums)]
         else:
-            return [concat(grad,nlist.axis,nlist.nums)]
+            return [concat(grad,nlist.axis,nlist.nums,nlist.index)]
 
 class ConcatOp(OP):
-    def __call__(self,node_a,axis=1,nums=0):
+    def __call__(self,node_a,axis=1,nums=0,node_index=-1):
         new_node=OP.__call__(self)
         if type(node_a) == list:
             new_node.parents=node_a
@@ -297,11 +301,17 @@ class ConcatOp(OP):
             new_node.parents=[node_a]
             new_node.axis=axis
             new_node.nums=nums
-            
+            new_node.node_index=node_index
             new_node.name="Concat({})".format(node_a.name)
         return new_node
     def compute(self,node,vals):
-        return np.concatenate(vals[0],node.axis)
+        print(vals[0].shape)
+        if type(vals[0])!=list:
+            concat_list = [np.zeros_like(vals[0]) for i in range(node.nums)]
+            concat_list[node.node_index]=vals[0]
+            return np.concatenate(concat_list,node.axis)
+        else:
+            return np.concatenate(vals[0],node.axis)
     def gradient(self,node,grad):
         return [concat_grad(grad,node.axis)]
 

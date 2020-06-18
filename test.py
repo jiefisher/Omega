@@ -9,8 +9,27 @@ import nn
 import loss
 import opt
 from activation import  *
+# import tensorflow as tf
+# x=tf.placeholder(name="x",shape=(1,2,2),dtype="float32")
+# y=tf.split(x,num_or_size_splits =2,axis = 1)
+# c=y[0]
+# session = tf.Session()
+# a=np.arange(4).reshape(1,2,2)
+# for i in range(2):
+#     res = session.run(c,feed_dict={x:a})
+#     print(y)
 
-
+a=np.array([0, 2, 1, 2]).reshape(1,2,2)
+b=np.array([0, 2, 1, 2]).reshape(1,2,2)
+x = node.Node("x")
+# y = node.Node("y")
+z = split(x,nums=2,axis=1)
+c=z[0]
+grads = gradients.gradients(c,[z,x])
+exe=executor.Executor([c]+grads)
+output = exe.run(feed_dict={x:a})
+print(output)
+exit()
 
 val=np.array([[0.1,0.2,0.3],[0.1,0.2,0.3]]).reshape(2,3)
 s = val.reshape(-1,1)
