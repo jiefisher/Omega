@@ -174,10 +174,13 @@ class MatMulOp(OP):
         new_node.name="matmul(node_a,node_b)"
         return new_node
     def compute(self,node,vals):
+        print(vals[0][0].shape,vals[1][0].shape,"vals")
+        print(node.parents[0].name,vals[0].shape,vals[1].shape,"nodename")
         if node.Trans_A:
             vals[0]=vals[0].T
         if node.Trans_B:
             vals[1]=vals[1].T
+        print(node.parents[1].name,vals[0].shape,vals[1].shape,"nodename")
         t=  np.dot(vals[0],vals[1])
         return np.dot(vals[0],vals[1])
     def gradient(self,node,grad):
@@ -204,9 +207,9 @@ class OnesLikeOp(OP):
         new_node.name="Ones(node_a)"
         return new_node
     def compute(self,node,vals):
-        print(vals[0])
+        print(vals[0].shape,"ones")
         # exit()
-        return np.ones(vals[0][0].shape)
+        return np.ones(vals[0].shape)
     def gradient(self,node,grad):
         
         return [zeros_like(node.parents[0])]
@@ -298,6 +301,7 @@ class ConcatOp(OP):
             new_node.parents=node_a
             new_node.axis=axis
             new_node.nums=nums
+            new_node.length = len(node_a)
             
             new_node.name="Concat({})".format(node_a[0].name)
         else:
@@ -317,20 +321,21 @@ class ConcatOp(OP):
         else:
             return np.concatenate(vals,node.axis)
     def gradient(self,node,grad):
-        return [concat_grad(grad,node.axis)]
+        return [concat_grad(grad,node.axis,node.length)]
 
 class ConcatGradientOp(OP):
-    def __call__(self,node_a,axis=1):
+    def __call__(self,node_a,axis=1,length =1):
         new_node=OP.__call__(self)
         new_node.parents=[node_a]
         new_node.axis=axis
+        new_node.length = length
         new_node.name="Concat_grad({})".format(node_a.name)
         return new_node
     def compute(self,node,vals):
         print(vals)
         print(node.axis)
         nums=vals[0].shape[node.axis]
-        return np.split(vals[0],nums,node.axis)
+        return np.split(vals[0],node.length,node.axis)
     def gradient(self,node,grad):
         raise "no grad"
 

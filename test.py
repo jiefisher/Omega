@@ -29,24 +29,35 @@ s_zeros = node.Node("s_zeros")
 h = []
 y = []
 inputs = split(x,nums=2,axis=1)
+
+# ht1=matmul(reshape(inputs[0],[1,2]),w1)+matmul(s_zeros,w2)
+# ht1.name="ht1"
+# yt1=matmul(ht1,w3)
+# yt1.name="yt1"
+
+# ht2=matmul(reshape(inputs[1],[1,2]),w1)+matmul(ht1,w2)
+# ht2.name="ht2"
+# yt2=matmul(ht2,w3)
+# yt2.name="yt2"
 for i in range(len(inputs)):
-    if i-1<0:
-        ht_1=s_zeros
+    if i==0:
+        ht1=s_zeros
     else:
-        ht_1=h[i-1]
-    ht=sigmoid(matmul(inputs[i],w1)+matmul(ht_1,w2))
+        ht1=h[-1]
+    ht=matmul(reshape(inputs[i],[1,2]),w1)+matmul(ht1,w2)
+    ht.name="ht"+str(i)
     h.append(ht)
-    yt=sigmoid(matmul(ht,w3))
+    yt=matmul(ht,w3)
+    yt.name="yt"+str(i)
     y.append(yt)
-print(len(inputs))
-c=concat(y,1)    
+c=concat(y,1)
 grads = gradients.gradients(yt,[w1,w2,w3])
 # grads = gradients.gradients(c,[x])
 exe=executor.Executor([yt]+grads)
-w_const = np.random.randn(2, 2)/(2* 2)
-s_const= np.random.randn(1, 2)/(1* 2)
+w_const = np.ones((2, 2))
+s_const= np.ones((1, 2))
 output = exe.run(feed_dict={x:a,w1:w_const,w2:w_const,w3:w_const,s_zeros:s_const})
-print(output[0])
+print(output)
 exit()
 
 val=np.array([[0.1,0.2,0.3],[0.1,0.2,0.3]]).reshape(2,3)

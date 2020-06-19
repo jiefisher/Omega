@@ -43,6 +43,8 @@ class SigmoidOp(OP):
                 = 2*sigmoid(2*x) - 1
         sigmoid(x) = 0.5 + 0.5*tanh(0.5*x)
         """
+        t=0.5 + 0.5*np.tanh(0.5*vals[0])
+        print("sig",t.shape)
  
         return 0.5 + 0.5*np.tanh(0.5*vals[0])
 

@@ -15,16 +15,39 @@ class Linear(module.Module):
         return y2
 
 class rnn(module.Module):
-    def __init__(self,shapes=(100,10)):
-        self.w=node.Parameter("w")
-        self.w.const=np.random.randn(shapes[0], shapes[1])/(shapes[0]* shapes[1])
+    def __init__(self,batch_size=32,shapes=(100,10),length=1):
+        self.w1=node.Parameter("w1")
+        self.w1.const=np.random.randn(shapes[0], shapes[1])/(shapes[0]* shapes[1])
+
+        self.w2=node.Parameter("w2")
+        self.w2.const=np.random.randn(shapes[0], shapes[1])/(shapes[0]* shapes[1])
+
+        self.w3=node.Parameter("w3")
+        self.w3.const=np.random.randn(shapes[0], shapes[1])/(shapes[0]* shapes[1])
+
+        self.s_zero=node.Parameter("s_zero")
+        self.s_zero.const=np.random.randn(batch_size, shapes[0])/(batch_size* shapes[0])
+
+        self.length=length
         # self.bias=node.Parameter("bias")
         # self.bias.const=np.random.randn(1, shapes[1])/(shapes[0]* shapes[1])
     def forward(self,x):
-        for i in range(10):
-            y1=matmul(x,self.w)
+        inputs = split(x,nums=self.length,axis=1)
+        h=[]
+        y=[]
+        for i in range(len(inputs)):
+            if i==0:
+                ht1=self.s_zeros
+            else:
+                ht1=h[-1]
+            ht=matmul(reshape(inputs[i],[1,2]),self.w1)+matmul(ht1,self.w2)
+            ht.name="ht"+str(i)
+            h.append(ht)
+            yt=matmul(ht,self.w3)
+            yt.name="yt"+str(i)
+            y.append(yt)
         
-        return y1
+        return yt
 
 class Conv2d(module.Module):
     def __init__(self,filter_shapes=(1,5,2,2),padding=(0,0),stride=(1,1)):
